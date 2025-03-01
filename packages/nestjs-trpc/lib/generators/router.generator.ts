@@ -26,7 +26,7 @@ export class RouterGenerator {
   ): Array<RouterGeneratorMetadata> {
     return routers.map((router) => {
       const proceduresMetadata = router.procedures.map((procedure) =>
-        this.serializeRouterProcedures(
+        this.serializeRouterProcedure(
           router.path,
           procedure,
           router.name,
@@ -42,7 +42,7 @@ export class RouterGenerator {
     });
   }
 
-  private serializeRouterProcedures(
+  private serializeRouterProcedure(
     routerFilePath: string,
     procedure: ProcedureFactoryMetadata,
     routerName: string,
