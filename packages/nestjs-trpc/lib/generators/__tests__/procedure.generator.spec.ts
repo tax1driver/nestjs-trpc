@@ -1,12 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Project } from 'ts-morph';
+import { Project, ts } from 'ts-morph';
 import {
   ProcedureGeneratorMetadata,
 } from '../../interfaces/generator.interface';
 import { ProcedureGenerator } from '../procedure.generator';
 import { ImportsScanner } from '../../scanners/imports.scanner';
+import { ScannerModule } from '../../scanners/scanner.module';
 import { StaticGenerator } from '../static.generator';
 import { TYPESCRIPT_APP_ROUTER_SOURCE_FILE } from '../generator.constants';
+import { z } from 'zod';
+
 
 describe('ProcedureGenerator', () => {
   let procedureGenerator: ProcedureGenerator;
@@ -14,12 +17,9 @@ describe('ProcedureGenerator', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [ScannerModule],
       providers: [
         ProcedureGenerator,
-        {
-          provide: ImportsScanner,
-          useValue: jest.fn(),
-        },
         {
           provide: StaticGenerator,
           useValue: jest.fn(),
@@ -67,6 +67,31 @@ describe('ProcedureGenerator', () => {
           'testMutation: publicProcedure.mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any )'
         );
       });
-    })
+    });
   });
+
+  describe('flattenZodSchema', () => {
+    it('should correctly process chained zod function calls', () => {
+      const project = new Project();
+
+      const sourceFile = project.createSourceFile(
+        `test.ts`,
+        `
+          const schema = z.object({
+            chained: z.array(z.object({ example: z.string() })).optional(),
+          });
+        `, { overwrite: true });
+
+      const schema = sourceFile.getVariableDeclaration('schema')?.getInitializer();
+
+      const result = procedureGenerator.flattenZodSchema(
+        schema as any,
+        sourceFile as any,
+        project as any,
+        schema?.getText() as any
+      );
+
+      expect(result).toMatchSnapshot();
+    });
+  })
 });

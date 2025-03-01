@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ProcedureGeneratorMetadata } from '../interfaces/generator.interface';
 import { ProcedureType } from '../trpc.enum';
-import { Project, SourceFile, Node } from 'ts-morph';
+import { Project, SourceFile, Node, SyntaxKind } from 'ts-morph';
 import { ImportsScanner } from '../scanners/imports.scanner';
 import { StaticGenerator } from './static.generator';
 import { TYPESCRIPT_APP_ROUTER_SOURCE_FILE } from './generator.constants';
@@ -110,6 +110,21 @@ export class ProcedureGenerator {
       }
     } else if (Node.isCallExpression(node)) {
       const expression = node.getExpression();
+
+      schema = node.getDescendantsOfKind(
+        SyntaxKind.CallExpression
+      ).reduce((prev, curr) => {
+        return prev.replace(
+          curr.getText(),
+          this.flattenZodSchema(
+            curr,
+            sourceFile,
+            project,
+            curr.getText()
+          )
+        );
+      }, schema);
+      
       if (
         Node.isPropertyAccessExpression(expression) &&
         !expression.getText().startsWith('z')

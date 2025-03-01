@@ -6,5 +6,6 @@
     "outDir": "./dist/tests",
     "types": ["jest", "node"],
     "emitDecoratorMetadata": true
-  }
+  },
+  "include": ["**/__tests__/*.spec.ts"],
 }
