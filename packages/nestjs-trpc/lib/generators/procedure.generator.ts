@@ -1,10 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ProcedureGeneratorMetadata } from '../interfaces/generator.interface';
 import { ProcedureType } from '../trpc.enum';
-import { Project, SourceFile, Node, SyntaxKind } from 'ts-morph';
+import { Project, SourceFile, Node, SyntaxKind, Type, Writers, Symbol, InterfaceDeclaration } from 'ts-morph';
 import { ImportsScanner } from '../scanners/imports.scanner';
 import { StaticGenerator } from './static.generator';
 import { TYPESCRIPT_APP_ROUTER_SOURCE_FILE } from './generator.constants';
+import { ProcedureFactoryMetadata } from '../interfaces/factory.interface';
+import { z } from 'zod';
 
 @Injectable()
 export class ProcedureGenerator {
@@ -165,5 +167,79 @@ export class ProcedureGenerator {
     }
 
     return schema;
+  }
+
+  public generateZodSchema(
+    type: Type,
+    sourceFile: SourceFile,
+  ): string {
+    let outputSchema = ""; 
+    if (type.getSymbol()?.getName() === 'Promise') {
+      return this.generateZodSchema(
+        type.getTypeArguments()[0],
+        sourceFile
+      );
+    }
+    
+    // Primitives
+    if (type.isLiteral()) {
+      outputSchema += `z.literal(${type.getLiteralValue()})`;
+    } else if (type.isString()) {
+      outputSchema += `z.string()`;
+    } else if (type.isBoolean()) {
+      outputSchema += `z.boolean()`;
+    } else if (type.isNull()) {
+      outputSchema += `z.null()`;
+    } else if (type.isNumber()) {
+      outputSchema += `z.number()`;
+    } else if (type.isUndefined()) {
+      outputSchema += `z.undefined()`;
+    } else if (type.isArray()) {
+      outputSchema += `z.array(${this.generateZodSchema(type.getArrayElementType()!, sourceFile)})`;
+    } else if (type.isInterface() || type.isObject()) {
+      if (type.getCallSignatures().length > 0) {
+        return '';
+      }
+
+      let properties: Symbol[] = [];
+      const decl = type.getSymbol()?.getDeclarations()?.[0] as InterfaceDeclaration;
+
+      properties = type.getProperties();
+      outputSchema += `z.object({`
+
+      for (const prop of properties) {
+        const propType = prop.getTypeAtLocation(decl);
+
+        if (propType.isObject() && propType.getCallSignatures().length > 0) {
+          continue;
+        }
+
+        outputSchema += `${prop.getName()}:` + this.generateZodSchema(
+          prop.getTypeAtLocation(decl),
+          sourceFile
+        );
+      }
+
+      outputSchema += `})`
+    } else if (type.isUnion()) {
+      outputSchema += `z.union([`;
+      for (const t of type.getUnionTypes()) {
+          outputSchema += this.generateZodSchema(t, sourceFile);
+      }
+      outputSchema += `])`;
+    } else if (type.isIntersection()) {
+      const [first, ...rest] = type.getIntersectionTypes();
+
+      outputSchema += `${this.generateZodSchema(first, sourceFile)}`;
+      for (const t of rest) {
+        outputSchema += `.and(${this.generateZodSchema(t, sourceFile)})`;
+      }
+    } else if (type.isVoid()) {
+      outputSchema += `z.void()`;
+    } else {
+      outputSchema += `z.any()`;
+    }
+
+    return `${outputSchema},`;
   }
 }

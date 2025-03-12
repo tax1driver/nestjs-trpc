@@ -4,6 +4,7 @@ import { TRPCErrorShape } from '@trpc/server/dist/rpc';
 import { TRPCContext } from './context.interface';
 import type { Class } from 'type-fest';
 import { ZodTypeAny } from 'zod';
+import { TRPCMiddleware } from './middleware.interface';
 
 export type SchemaImports =
   | ((...args: Array<unknown>) => unknown)
@@ -18,6 +19,16 @@ export interface TRPCModuleOptions {
    * Path to trpc app router and helpers types output.
    */
   autoSchemaFile?: string;
+
+  /**
+   * Enables automatic generation of procedure output schemas based on the return type of the procedure handler.
+   */
+  autoOutputGeneration?: boolean;
+
+  /**
+   * Specifies global middlewares to use for the application.
+   */
+  useGlobalMiddlewares?: TRPCMiddleware[];
 
   /**
    * Specifies additional imports for the schema file. This array can include functions, objects, or Zod schemas.

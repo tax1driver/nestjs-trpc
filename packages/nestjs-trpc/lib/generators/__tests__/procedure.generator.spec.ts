@@ -32,6 +32,7 @@ describe('ProcedureGenerator', () => {
     }).compile();
 
     procedureGenerator = module.get<ProcedureGenerator>(ProcedureGenerator);
+    project = new Project();
   });
 
   it('should be defined', () => {
@@ -72,8 +73,6 @@ describe('ProcedureGenerator', () => {
 
   describe('flattenZodSchema', () => {
     it('should correctly process chained zod function calls', () => {
-      const project = new Project();
-
       const sourceFile = project.createSourceFile(
         `test.ts`,
         `
@@ -93,5 +92,26 @@ describe('ProcedureGenerator', () => {
 
       expect(result).toMatchSnapshot();
     });
+
+    it('should generate correct schemas for output types', () => {
+      const sourceFile = project.createSourceFile(
+        `test.ts`,
+        `
+          export interface Test {
+            aString: string;
+            aNumber: number;
+            anArray: string[];
+            anObject: { a: string };
+          }
+        `, { overwrite: true });
+
+      const schema = sourceFile.getInterface('Test')!;
+      const result = procedureGenerator.generateZodSchema(
+        schema.getType(),
+        sourceFile
+      );
+
+      console.log(result);
+    })
   })
 });

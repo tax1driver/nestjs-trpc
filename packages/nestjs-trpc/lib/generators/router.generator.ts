@@ -11,9 +11,14 @@ import { DecoratorGenerator } from './decorator.generator';
 import { Inject, Injectable } from '@nestjs/common';
 import { camelCase } from 'lodash';
 import { ProcedureGenerator } from './procedure.generator';
+import { TRPC_MODULE_OPTIONS } from '../trpc.constants';
+import { TRPCModuleOptions } from '../interfaces/module-options.interface';
 
 @Injectable()
 export class RouterGenerator {
+  @Inject(TRPC_MODULE_OPTIONS)
+  private readonly options!: TRPCModuleOptions;
+
   @Inject(DecoratorGenerator)
   private readonly decoratorHandler!: DecoratorGenerator;
 
@@ -75,6 +80,14 @@ export class RouterGenerator {
         sourceFile,
         project,
       );
+
+    const procDecorator = serializedDecorators.find((v) => v.name === 'Mutation' || v.name === 'Query');
+    if (this.options.autoOutputGeneration && procDecorator && !procDecorator.arguments.output) {
+      procDecorator.arguments.output = this.procedureGenerator.generateZodSchema(
+        methodDeclaration.getReturnType(),
+        sourceFile
+      );
+    }
 
     return {
       name: procedure.name,
